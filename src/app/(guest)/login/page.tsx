@@ -1,15 +1,46 @@
 'use client'
 import Link from 'next/link'
-import * as Yup from 'yup'
 import { useSearchParams } from 'next/navigation'
 import axios, { AxiosError } from 'axios'
-import { ErrorMessage, Field, Form, Formik, FormikHelpers } from 'formik'
 
 import { useAuth } from '@/hooks/auth'
 import ApplicationLogo from '@/components/ApplicationLogo'
 import AuthCard from '@/components/AuthCard'
 import { useEffect, useState } from 'react'
 import AuthSessionStatus from '@/components/AuthSessionStatus'
+import { z } from 'zod'
+
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+
+import { Checkbox } from '@/components/ui/checkbox'
+
+import { Button } from '@/components/ui/button'
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+
+import { Input } from '@/components/ui/input'
+
+const formSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+  remember: z.boolean(),
+})
 
 interface Values {
   email: string
@@ -26,33 +57,31 @@ const LoginPage = () => {
     redirectIfAuthenticated: '/dashboard',
   })
 
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+      remember: false,
+    },
+  })
+
   useEffect(() => {
     const resetToken = searchParams.get('reset')
     setStatus(resetToken ? atob(resetToken) : '')
   }, [searchParams])
 
-  const submitForm = async (
-    values: Values,
-    { setSubmitting, setErrors }: FormikHelpers<Values>,
-  ): Promise<any> => {
+  const onSubmit = async (values: z.infer<typeof formSchema>): Promise<any> => {
     try {
       await login(values)
     } catch (error: Error | AxiosError | any) {
       if (axios.isAxiosError(error) && error.response?.status === 422) {
-        setErrors(error.response?.data?.errors)
+        console.log(error.response?.data?.errors)
       }
     } finally {
-      setSubmitting(false)
       setStatus('')
     }
   }
-
-  const LoginSchema = Yup.object().shape({
-    email: Yup.string()
-      .email('Invalid email')
-      .required('The email field is required.'),
-    password: Yup.string().required('The password field is required.'),
-  })
 
   return (
     <AuthCard
@@ -62,83 +91,86 @@ const LoginPage = () => {
         </Link>
       }>
       <AuthSessionStatus className="mb-4" status={status} />
-
-      <Formik
-        onSubmit={submitForm}
-        validationSchema={LoginSchema}
-        initialValues={{ email: '', password: '', remember: false }}>
-        <Form className="space-y-4">
-          <div>
-            <label
-              htmlFor="email"
-              className="undefined block font-medium text-sm text-gray-700">
-              Email
-            </label>
-
-            <Field
-              id="email"
-              name="email"
-              type="email"
-              className="block mt-1 w-full rounded-md shadow-sm border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-            />
-
-            <ErrorMessage
-              name="email"
-              component="span"
-              className="text-xs text-red-500"
-            />
+      <Card className="mx-auto max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-2xl">Login</CardTitle>
+          <CardDescription>
+            Enter your email below to login to your account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4">
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-8">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="Email" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        This is your public display name.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="Password"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        This is your public display name.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="remember"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md">
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Remember me</FormLabel>
+                      </div>
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full">
+                  Login
+                </Button>
+              </form>
+            </Form>
           </div>
-
-          <div className="">
-            <label
-              htmlFor="password"
-              className="undefined block font-medium text-sm text-gray-700">
-              Password
-            </label>
-
-            <Field
-              id="password"
-              name="password"
-              type="password"
-              className="block mt-1 w-full rounded-md shadow-sm border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-            />
-
-            <ErrorMessage
-              name="password"
-              component="span"
-              className="text-xs text-red-500"
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <label htmlFor="remember" className="inline-flex items-center">
-              <Field
-                type="checkbox"
-                name="remember"
-                className="rounded border-[#99A6AE] text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-              />
-
-              <span className="ml-2 text-[#252729] text-sm leading-[150%] tracking-[-0.4px] font-medium">
-                Remember me
-              </span>
-            </label>
-          </div>
-
-          <div className="flex items-center justify-end mt-4">
-            <Link
-              href="/forgot-password"
-              className="underline text-sm text-gray-600 hover:text-gray-900">
-              Forgot your password?
+          <div className="mt-4 text-center text-sm">
+            Don&apos;t have an account?{' '}
+            <Link href="/register" className="underline">
+              Sign up
             </Link>
-
-            <button
-              type="submit"
-              className="ml-3 inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 active:bg-gray-900 focus:outline-none focus:border-gray-900 focus:ring ring-gray-300 disabled:opacity-25 transition ease-in-out duration-150">
-              Login
-            </button>
           </div>
-        </Form>
-      </Formik>
+        </CardContent>
+      </Card>
     </AuthCard>
   )
 }
